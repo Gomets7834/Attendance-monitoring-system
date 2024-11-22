@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Attendance</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #e0e7ff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            width: 95%;
+            max-width: 1200px;
+            text-align: center;
+        }
+        h2 {
+            color: #3b82f6;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .buttons select {
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #f1f5f9;
+            color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        tr:hover {
+            background-color: #f3f4f6;
+        }
+        button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Edit Attendance</h2>
+        <div class="buttons">
+            <select id="sectionChooser">
+                <!-- Section options will be populated here -->
+            </select>
+            <button onclick="loadAttendance()">Load Attendance</button>
+        </div>
+        <table id="attendanceTable">
+            <thead>
+                <tr id="dateHeaders">
+                    <th>Student Name</th>
+                    <!-- Weekly dates will be generated here -->
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dynamically populated rows will go here -->
+            </tbody>
+        </table>
+        <button onclick="saveAttendance()">Save Attendance</button>
+        <button onclick="location.href='admin_attendance.html'">Back to Attendance</button>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSections();
+            generateDateHeaders();
+        });
+
+        function loadSections() {
+            const sections = ['ICT PROGRAMMING', 'ABM', 'ICT ANIMATION', 'HUMSS', 'GAS']; // Example strands
+            const sectionChooser = document.getElementById('sectionChooser');
+            sections.forEach(section => {
+                const option = document.createElement('option');
+                option.value = section;
+                option.textContent = section;
+                sectionChooser.appendChild(option);
+            });
+        }
+
+        function generateDateHeaders() {
+            const dateHeaders = document.getElementById('dateHeaders');
+            const today = new Date();
+            const startOfWeek = today.getDate() - today.getDay() + 1; // Calculate start of the week (Monday)
+            dateHeaders.innerHTML = '<th>Student Name</th>'; // Reset headers
+
+            for (let i = 0; i < 5; i++) { // Assuming a 5-day school week (Monday to Friday)
+                const date = new Date(today.setDate(startOfWeek + i));
+                const dateString = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+                const th = document.createElement('th');
+                th.textContent = dateString;
+                dateHeaders.appendChild(th);
+            }
+        }
+
+        function loadAttendance() {
+            const section = document.getElementById('sectionChooser').value;
+            const students = getStudents().filter(student => student.strand === section);
+            const attendanceTableBody = document.getElementById('attendanceTable').querySelector('tbody');
+            attendanceTableBody.innerHTML = '';
+
+            students.forEach(student => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${student.name}</td>
+                    ${generateAttendanceCells(student)}
+                    <td>
+                        <button onclick="sendNotification('${student.name}', getAttendanceStatus('${student.name}'))">Notify</button>
+                    </td>
+                `;
+                attendanceTableBody.appendChild(row);
+            });
+        }
+
+        function generateAttendanceCells(student) {
+            const today = new Date();
+            const startOfWeek = today.getDate() - today.getDay() + 1;
+            let cells = '';
+
+            for (let i = 0; i < 5; i++) {
+                const date = new Date(today.setDate(startOfWeek + i));
+                const dateString = date.toISOString().split('T')[0];
+                const status = student[dateString] || 'Present';
+                cells += `
+                    <td>
+                        <select id="attendance_${student.name}_${dateString}">
+                            <option value="Present" ${status === 'Present' ? 'selected' : ''}>Present</option>
+                            <option value="Absent" ${status === 'Absent' ? 'selected' : ''}>Absent</option>
+                            <option value="Late" ${status === 'Late' ? 'selected' : ''}>Late</option>
+                        </select>
+                    </td>
+                `;
+            }
+            return cells;
+        }
+
+        function getAttendanceStatus(studentName) {
+            const today = new Date();
+            const startOfWeek = today.getDate() - today.getDay() + 1;
+            let status = '';
+
+            for (let i = 0; i < 5; i++) {
+                const date = new Date(today.setDate(startOfWeek + i));
+                const dateString = date.toISOString().split('T')[0];
+                status += `${dateString}: ${document.getElementById(`attendance_${studentName}_${dateString}`).value}, `;
+            }
+            return status.slice(0, -2);
+        }
+
+        function getStudents() {
+            return JSON.parse(localStorage.getItem('students')) || [];
+        }
+
+        function saveAttendance() {
+            const section = document.getElementById('sectionChooser').value;
+            const students = getStudents();
+
+            students.forEach(student => {
+                if (student.strand === section) {
+                    for (let i = 0; i < 5; i++) {
+                        const today = new Date();
+                        const date = new Date(today.setDate(today.getDate() - today.getDay() + 1 + i));
+                        const dateString = date.toISOString().split('T')[0];
+                        const status = document.getElementById(`attendance_${student.name}_${dateString}`).value;
+                        if (!student[dateString]) {
+                            student[dateString] = {};
+                        }
+                        student[dateString][section] = status;
+                    }
+                }
+            });
+
+            localStorage.setItem('students', JSON.stringify(students));
+            addHistoryEntry(new Date().toLocaleString(), 'Update Attendance', `Attendance updated for ${section}`);
+            alert('Attendance saved successfully.');
+        }
+
+        function sendNotification(studentName, status) {
+            const message = `Attendance status for ${studentName}: ${status}`;
+            addNotification('Attendance Updated', message);
+            addUserHistoryEntry(studentName, new Date().toLocaleString(), 'Attendance Update', message);
+        }
+
+        function addNotification(title, message) {
+            const notifications = JSON.parse(localStorage.getItem('notifications')) || [];
+            notifications.push({ title, message, timestamp: new Date().toLocaleString() });
+            localStorage.setItem('notifications', JSON.stringify(notifications));
+        }
+
+        function addHistoryEntry(date, action, details) {
+            const history = JSON.parse(localStorage.getItem('history')) || [];
+            history.push({ date, action, details });
+            localStorage.setItem('history', JSON.stringify(history));
+        }
+
+        function addUserHistoryEntry(studentName, date, action, details) {
+            let userHistory = JSON.parse(localStorage.getItem('userHistory')) || {};
+            if (!userHistory[studentName]) {
+                userHistory[studentName] = [];
+            }
+            userHistory[studentName].push({ date, action, details });
+            localStorage.setItem('userHistory', JSON.stringify(userHistory));
+        }
+    </script>
+</body>
+</html>
